@@ -2,11 +2,11 @@ package hopkins.database.github
 
 import java.time.LocalDate
 
-import akka.actor.typed.{ActorRef, Scheduler}
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.adapter._
-import akka.stream.Materializer
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.stream.typed.scaladsl.ActorSink
+import akka.stream.{ActorAttributes, Materializer, Supervision}
 import akka.util.Timeout
 import hopkins.covid.model.{Country, CountryStats}
 import hopkins.database.github.CountryStatsAggregation.Protocol
@@ -29,8 +29,8 @@ object GithubDatabase {
       Start.apply,
       Ack,
       Completed,
-      _ => Completed
-    )
+      t => Failure(t)
+    ).withAttributes(ActorAttributes.supervisionStrategy(decider))
 
     Downloader.gatherStats(actorContext.system.toClassic)
       .runWith(sink)
@@ -39,12 +39,17 @@ object GithubDatabase {
 
   }
 
+  private val decider: Supervision.Decider = {
+    case _: RuntimeException => Supervision.Resume
+    case _                      => Supervision.Stop
+  }
+
   object api {
     import akka.actor.typed.scaladsl.AskPattern._
     implicit final class CountryStatsAggregationOps(actorRef: ActorRef[CountryStatsAggregation.Protocol]) {
       def getData(country: Country, from: LocalDate, to: LocalDate)
-                 (implicit timeout: Timeout, scheduler: Scheduler): Future[List[CountryStats]] =
-        actorRef ?  (replyTo => GetCountryStats(country, from, to, replyTo))
+                 (implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, List[CountryStats]]] =
+        actorRef ? (replyTo => GetCountryStats(country, from, to, replyTo))
     }
   }
 }

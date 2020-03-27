@@ -2,20 +2,17 @@ package hopkins.database.github
 
 import java.net.URI
 import java.time.{LocalDate, LocalDateTime}
-import java.time.format.DateTimeFormatter
+import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import cats.effect.IO
 import github4s.Github
 import github4s.domain.Content
 import io.circe.Encoder
-import io.circe.generic.auto._
-import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -33,16 +30,18 @@ object Downloader {
     .mapConcat(identity)
     .mapAsync(4) {
       downloadable =>
+        println("downloading " + downloadable.uri)
         Http().singleRequest(HttpRequest(uri = downloadable.uri.toString))
     }.flatMapConcat {
-      extractEntityData
+      extractEntityData(_)
+        .via(CsvParsing.lineScanner())
+        .via(CsvToMap.toMapAsStrings())
+        .map(toProvinceRow)
+        .collect {
+          case Some(o) => o
+        }
     }
-    .via(CsvParsing.lineScanner())
-    .via(CsvToMap.toMapAsStrings())
-    .map(toProvinceRow)
-    .collect {
-      case Some(o) => o
-    }
+
 
 
   private def extractEntityData(response: HttpResponse): Source[ByteString, _] =
@@ -53,22 +52,23 @@ object Downloader {
     }
 
   implicit val uriEncoder: Encoder[URI] = Encoder.encodeString.contramap(_.toString)
-  private case class Downloadable(fileDate: LocalDate, uri: URI)
+  case class Downloadable private(fileDate: LocalDate, uri: URI)
 
-  case class ProvinceRow(country: Country, province: Province, provinceStats: ProvinceStats)
+  case class ProvinceRow private(country: Country, province: Province, provinceStats: ProvinceStats)
 
   def toProvinceRow(values: Map[String, String]): Option[ProvinceRow] = {
-    val countryName = values.getOrElse("Country/Region", "")
-    val provinceName = values.getOrElse("Province/State", "")
-    val lastUpdateOpt = values.get("Last Update").map(
-      d => LocalDateTime.parse(d, DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm"))
-    )
-    val confirmed = Confirmed(values.get("Confirmed").map(_.toInt).getOrElse(0))
-    val deaths = Deaths(values.get("Deaths").map(_.toInt).getOrElse(0))
-    val recoveries = Recovered(values.get("Recovered").map(_.toInt).getOrElse(0))
 
+    val lastUpdateOpt = values.get("Last Update").filterNot(_ == "Last Update").map(
+      DateFormatter.parseLocalDateTimeUnsafe
+    )
     lastUpdateOpt.map {
       lastUpdate =>
+        val countryName = values.getOrElse("Country/Region", "")
+        val provinceName = values.getOrElse("Province/State", "")
+
+        val confirmed = Confirmed(values.get("Confirmed").filterNot(_.isEmpty).map(_.toInt).getOrElse(0))
+        val deaths = Deaths(values.get("Deaths").filterNot(_.isEmpty).map(_.toInt).getOrElse(0))
+        val recoveries = Recovered(values.get("Recovered").filterNot(_.isEmpty).map(_.toInt).getOrElse(0))
         ProvinceRow(
           Country(countryName),
           Province(provinceName),
@@ -80,6 +80,7 @@ object Downloader {
           )
         )
     }
+
   }
 
   val getContents =
@@ -87,11 +88,12 @@ object Downloader {
       .getContents(
         "CSSEGISandData",
         "COVID-19",
-        "csse_covid_19_data/csse_covid_19_daily_reports", Some("heads/master")
+        "csse_covid_19_data/csse_covid_19_daily_reports", Some("master")
       ).map(_.result).flatMap(IO.fromEither)
 
   val dailyReports = getContents.map(_.map(toDownloadableCsv).collect {
-    case Some(o) => o
+    case Some(o) =>
+      o
   })
 
   val dateParsing: String => LocalDate =
@@ -104,4 +106,16 @@ object Downloader {
 
 
 
+}
+
+object DateFormatter {
+  val formatter = new DateTimeFormatterBuilder()
+    .appendOptional(DateTimeFormatter.ofPattern("M/d/yyyy H:mm"))
+    .appendOptional(DateTimeFormatter.ofPattern("M/d/yy H:mm"))
+    .toFormatter()
+
+
+  val parseLocalDateTimeUnsafe: String => LocalDateTime = date =>
+    (Try(LocalDateTime.parse(date, formatter)) orElse
+      Try(LocalDateTime.parse(date, DateTimeFormatter.ISO_DATE_TIME))).get
 }

@@ -28,6 +28,7 @@ object Dependencies {
     }
     val github4s = "0.23.0"
 
+    val logbackClassic = "1.2.3"
 
   }
 
@@ -54,6 +55,14 @@ object Dependencies {
     }
     object scalatest {
       val core =  "org.scalatest" %% "scalatest" % Version.scalatest.core % "test"
+    }
+
+    object Logback {
+      val essentials = Seq(
+        "ch.qos.logback" % "logback-classic",
+        "ch.qos.logback" % "logback-core",
+        "ch.qos.logback" % "logback-access"
+      ).map(_  % Version.logbackClassic)
     }
 
     val github4s = "com.47deg" %% "github4s" % Version.github4s
@@ -85,7 +94,7 @@ object Dependencies {
         cats.kittens
     ) ++ circe.all
 
-    val service = Seq(tapir.akka) ++ tapir.docs
+    val service = Seq(tapir.akka) ++ tapir.docs ++ Logback.essentials
 
   }
 }

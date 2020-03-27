@@ -8,30 +8,32 @@ import cats.Monoid
 import hopkins.covid.model.{Country, CountryStats}
 import cats.implicits._
 import hopkins.database.github.Downloader.ProvinceRow
-import cats.derived.auto._
 
 object CountryStatsAggregation {
 
   implicit val monoid: Monoid[Map[LocalDate, CountryStats]] = implicitly
 
-  def behaviour(timeSeries: Map[LocalDate, CountryStats]): Behavior[Protocol] =
+  def behaviour(timeSeries: Map[LocalDate, CountryStats]): Behavior[Protocol] = Behaviors.setup { _ =>
     Behaviors.receiveMessage {
       case Protocol.AddCountryStats(row, replyTo) =>
+        val newTimeSeries = toTimeSeries(row)
         replyTo ! Protocol.Ack
-        behaviour(timeSeries |+| toTimeSeries(row))
+        behaviour(timeSeries ++ newTimeSeries)
       case Protocol.GetCountryStats(_, from, to, replyTo) =>
         val stats = timeSeries.view.filterKeys(d =>
           d.compareTo(from) >= 0 && d.compareTo(to) <= 0
         )
 
-        replyTo ! stats.values.toList
+        replyTo ! Right(stats.values.toList)
+        Behaviors.same
+      case _ =>
         Behaviors.same
     }
+  }
 
   def toTimeSeries(row: ProvinceRow): Map[LocalDate, CountryStats] =
     Map(
-      row.provinceStats.lastUpdate.toLocalDate ->
-      CountryStats(
+      row.provinceStats.lastUpdate.toLocalDate -> CountryStats(
         Map(
           row.province -> row.provinceStats
         )
@@ -44,6 +46,7 @@ object CountryStatsAggregation {
     case object Ack extends Ack
     case class AddCountryStats(countryStats: ProvinceRow, replyTo: ActorRef[Ack]) extends Protocol
     case object Completed extends Protocol
+    case class Failure(throwable: Throwable) extends Protocol
     case class Start(replyTo: ActorRef[Ack]) extends Protocol
 
     sealed trait Query extends Protocol
@@ -51,7 +54,7 @@ object CountryStatsAggregation {
       country: Country,
       from: LocalDate,
       to: LocalDate,
-      replyTo: ActorRef[List[CountryStats]]
+      replyTo: ActorRef[Either[Unit, List[CountryStats]]]
     ) extends Protocol
   }
 }
