@@ -15,5 +15,6 @@ lazy val database = (project in file("database"))
 
 lazy val endpoints = (project in file("endpoints"))
   .settings(libraryDependencies ++= Dependencies.Module.endpoints)
+  .dependsOn(model)
 
 lazy val model = (project in file("model"))

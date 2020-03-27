@@ -20,7 +20,7 @@ object Dependencies {
       val core = "3.1.1"
     }
     object tapir {
-      val core = "0.12.23"
+      val core = "0.12.25"
     }
 
     object circe {
@@ -49,6 +49,7 @@ object Dependencies {
     object circe {
       val all = Seq("io.circe" %% "circe-core",
         "io.circe" %% "circe-generic",
+        "io.circe" %% "circe-generic-extras",
         "io.circe" %% "circe-parser").map(_ % Version.circe.core)
     }
     object scalatest {
