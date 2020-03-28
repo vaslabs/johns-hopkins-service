@@ -2,29 +2,32 @@ package hopkins.database.github
 
 import java.time.LocalDate
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
-import cats.Monoid
-import hopkins.covid.model.{Country, CountryStats}
+import akka.actor.typed.{ActorRef, Behavior}
 import cats.implicits._
+import cats.kernel.Semigroup
+import hopkins.covid.model.{Country, CountryStats}
 import hopkins.database.github.Downloader.ProvinceRow
 
 object CountryStatsAggregation {
 
-  implicit val monoid: Monoid[Map[LocalDate, CountryStats]] = implicitly
+
+  implicit val semigroupCountryStats: Semigroup[CountryStats] = (x: CountryStats, y: CountryStats) =>
+    CountryStats(x.provinceStats |+| y.provinceStats)
+
 
   def behaviour(timeSeries: Map[LocalDate, CountryStats]): Behavior[Protocol] = Behaviors.setup { _ =>
     Behaviors.receiveMessage {
       case Protocol.AddCountryStats(row, replyTo) =>
         val newTimeSeries = toTimeSeries(row)
         replyTo ! Protocol.Ack
-        behaviour(timeSeries ++ newTimeSeries)
+        behaviour(timeSeries |+| newTimeSeries)
       case Protocol.GetCountryStats(_, from, to, replyTo) =>
         val stats = timeSeries.view.filterKeys(d =>
           d.compareTo(from) >= 0 && d.compareTo(to) <= 0
         )
 
-        replyTo ! Right(stats.values.toList)
+        replyTo ! Right(stats.toMap)
         Behaviors.same
       case _ =>
         Behaviors.same
@@ -35,7 +38,7 @@ object CountryStatsAggregation {
     Map(
       row.provinceStats.lastUpdate.toLocalDate -> CountryStats(
         Map(
-          row.province -> row.provinceStats
+          row.province -> List(row.provinceStats)
         )
       )
     )
@@ -54,7 +57,7 @@ object CountryStatsAggregation {
       country: Country,
       from: LocalDate,
       to: LocalDate,
-      replyTo: ActorRef[Either[Unit, List[CountryStats]]]
+      replyTo: ActorRef[Either[Unit, Map[LocalDate, CountryStats]]]
     ) extends Protocol
   }
 }

@@ -48,7 +48,7 @@ object GithubDatabase {
     import akka.actor.typed.scaladsl.AskPattern._
     implicit final class CountryStatsAggregationOps(actorRef: ActorRef[CountryStatsAggregation.Protocol]) {
       def getData(country: Country, from: LocalDate, to: LocalDate)
-                 (implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, List[CountryStats]]] =
+                 (implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, Map[LocalDate, CountryStats]]] =
         actorRef ? (replyTo => GetCountryStats(country, from, to, replyTo))
     }
   }

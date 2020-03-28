@@ -16,7 +16,7 @@ object Stats {
     .in("country" / path[Country]("country"))
     .in(query[LocalDate]("from").example(LocalDate.now().minusMonths(2)))
     .in(query[LocalDate]("to").example(LocalDate.now()))
-    .out(jsonBody[List[CountryStats]])
+    .out(jsonBody[Map[LocalDate, CountryStats]])
 
   val health = endpoint
     .get

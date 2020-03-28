@@ -8,7 +8,7 @@ case class Confirmed(value: Int)
 case class Deaths(value: Int)
 case class Recovered(value: Int)
 
-case class CountryStats(provinceStats: Map[Province, ProvinceStats])
+case class CountryStats(provinceStats: Map[Province, List[ProvinceStats]])
 
 case class ProvinceStats(
     lastUpdate: LocalDateTime,
