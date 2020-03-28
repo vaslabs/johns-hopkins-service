@@ -38,7 +38,7 @@ object CountryStatsAggregation {
     Map(
       row.provinceStats.lastUpdate.toLocalDate -> CountryStats(
         Map(
-          row.province -> List(row.provinceStats)
+          row.province -> Set(row.provinceStats)
         )
       )
     )
