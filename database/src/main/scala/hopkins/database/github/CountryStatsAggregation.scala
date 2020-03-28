@@ -58,6 +58,10 @@ object CountryStatsAggregation {
       from: LocalDate,
       to: LocalDate,
       replyTo: ActorRef[Either[Unit, Map[LocalDate, CountryStats]]]
-    ) extends Protocol
+    ) extends Query
+
+    case class GetAllCountries(replyTo: ActorRef[Either[Unit, List[Country]]]) extends Query
+
   }
+
 }

@@ -11,6 +11,7 @@ import io.circe.generic.auto._
 object circe {
 
   implicit val countryCodec: Codec[Country] = deriveUnwrappedCodec
+  implicit val countryListCodec: Codec[List[Country]] = deriveCodec
   implicit val deathsCodec: Codec[Deaths] = deriveUnwrappedCodec
   implicit val recoveriesCodec: Codec[Recovered] = deriveUnwrappedCodec
   implicit val confirmedCodec: Codec[Confirmed] = deriveUnwrappedCodec

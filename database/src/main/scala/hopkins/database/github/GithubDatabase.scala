@@ -21,7 +21,7 @@ object GithubDatabase {
   def start(implicit actorContext: ActorContext[_]): ActorRef[CountryStatsAggregation.Protocol] = {
     implicit val materializer: Materializer = Materializer(actorContext)
     val worldStatsAggregation: ActorRef[CountryStatsAggregation.Protocol] =
-      actorContext.spawn(WorldStatsAggregation.behaviour, "WorldStats")
+      actorContext.spawn(WorldStatsAggregation.behaviour(), "WorldStats")
 
     val sink = ActorSink.actorRefWithBackpressure[ProvinceRow, Protocol, Ack] (
       worldStatsAggregation,
@@ -50,6 +50,10 @@ object GithubDatabase {
       def getData(country: Country, from: LocalDate, to: LocalDate)
                  (implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, Map[LocalDate, CountryStats]]] =
         actorRef ? (replyTo => GetCountryStats(country, from, to, replyTo))
+
+      def getAllCountries(implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, List[Country]]] =
+        actorRef ? (GetAllCountries.apply)
+
     }
   }
 }

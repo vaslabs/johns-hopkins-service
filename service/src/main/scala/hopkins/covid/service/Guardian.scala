@@ -17,7 +17,11 @@ object Guardian {
     ctx =>
       implicit val actorSystem = ctx.system.toClassic
       val worldStats = GithubDatabase.start(ctx)
-      val routes = Routes.countryStats(worldStats)(Timeout(3 seconds), ctx.system.scheduler) ~ Routes.health ~ Routes.docs
+      val routes =
+        Routes.countryStats(worldStats)(Timeout(3 seconds), ctx.system.scheduler) ~
+          Routes.allCountries(worldStats)(Timeout(2 seconds), ctx.system.scheduler) ~
+          Routes.health ~
+          Routes.docs
       implicit val materializer = Materializer(ctx)
       val server = Http().bindAndHandle(routes, "0.0.0.0", 8080)
       Behaviors.receiveMessage[GuardianProtocol] (

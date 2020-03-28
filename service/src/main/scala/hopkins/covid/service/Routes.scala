@@ -21,11 +21,18 @@ object Routes {
         worldStats.getData(country, from , to)
     }
 
+  def allCountries(worldStats: ActorRef[CountryStatsAggregation.Protocol])
+                  (implicit
+                   timeout: Timeout, scheduler: Scheduler) =
+    Stats.allCountries.toRoute {
+      _ => worldStats.getAllCountries
+    }
+
   def health = Stats.health.toRoute {
     _ => Future.successful(Right(()))
   }
 
-  val openApi = List(Stats.country).toOpenAPI("Hopkins daily stats", "v1.0")
+  val openApi = List(Stats.country, Stats.allCountries).toOpenAPI("Hopkins daily stats", "v1.0")
 
   val docs = new SwaggerAkka(openApi.toYaml).routes
 

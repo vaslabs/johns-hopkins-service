@@ -18,6 +18,11 @@ object Stats {
     .in(query[LocalDate]("to").example(LocalDate.now()))
     .out(jsonBody[Map[LocalDate, CountryStats]])
 
+  val allCountries = endpoint
+    .get
+    .in("countries")
+    .out(jsonBody[List[Country]])
+
   val health = endpoint
     .get
     .in("health")
