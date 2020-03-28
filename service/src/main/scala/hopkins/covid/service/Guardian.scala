@@ -24,6 +24,7 @@ object Guardian {
           Routes.docs
       implicit val materializer = Materializer(ctx)
       val server = Http().bindAndHandle(routes, "0.0.0.0", 8080)
+
       Behaviors.receiveMessage[GuardianProtocol] (
         _ => Behaviors.ignore
       ).receiveSignal {

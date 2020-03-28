@@ -6,7 +6,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import cats.implicits._
 import cats.kernel.Semigroup
-import hopkins.covid.model.{Country, CountryStats}
+import hopkins.covid.model.{Country, CountryStats, DetectedCountries}
 import hopkins.database.github.Downloader.ProvinceRow
 
 object CountryStatsAggregation {
@@ -60,7 +60,7 @@ object CountryStatsAggregation {
       replyTo: ActorRef[Either[Unit, Map[LocalDate, CountryStats]]]
     ) extends Query
 
-    case class GetAllCountries(replyTo: ActorRef[Either[Unit, List[Country]]]) extends Query
+    case class GetAllCountries(replyTo: ActorRef[Either[Unit, DetectedCountries]]) extends Query
 
   }
 

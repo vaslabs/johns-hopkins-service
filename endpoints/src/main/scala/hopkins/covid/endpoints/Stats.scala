@@ -1,14 +1,15 @@
 package hopkins.covid.endpoints
 import java.time.LocalDate
 
-import hopkins.covid.model.{Confirmed, Country, CountryStats, Deaths, Province, Recovered}
+import hopkins.covid.model.{Confirmed, Country, CountryStats, Deaths, DetectedCountries, Province, Recovered}
 import sttp.tapir._
 import hopkins.covid.json.circe._
 import sttp.model.StatusCode
 import sttp.tapir.json.circe._
+import io.circe.generic.auto._
 object Stats {
 
-  implicit val countryCodec = Codec.stringPlainCodecUtf8.map(Country)(_.name)
+  implicit val countryCodec = Codec.stringPlainCodecUtf8.map(Country)(_.value)
   import documentation._
 
   val country = endpoint
@@ -21,7 +22,7 @@ object Stats {
   val allCountries = endpoint
     .get
     .in("countries")
-    .out(jsonBody[List[Country]])
+    .out(jsonBody[DetectedCountries])
 
   val health = endpoint
     .get
@@ -38,8 +39,8 @@ object documentation {
   implicit val confirmedSchema: Schema[Confirmed] = Schema(SchemaType.SInteger)
   implicit val recoveredSchema: Schema[Recovered] = Schema(SchemaType.SInteger)
 
-  implicit val countryValidation: Validator[Country] = Validator.maxLength(128).contramap(_.name)
-  implicit val provinceValidation: Validator[Province] = Validator.maxLength(128).contramap(_.name)
+  implicit val countryValidation: Validator[Country] = Validator.maxLength(128).contramap(_.value)
+  implicit val provinceValidation: Validator[Province] = Validator.maxLength(128).contramap(_.value)
   implicit val deathsValidation: Validator[Deaths] = Validator.min(0).contramap(_.value)
   implicit val confirmedValidation: Validator[Confirmed] = Validator.min(0).contramap(_.value)
   implicit val recoveredValidation: Validator[Recovered] = Validator.min(0).contramap(_.value)

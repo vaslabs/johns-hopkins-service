@@ -2,13 +2,14 @@ package hopkins.database.github
 
 import java.time.LocalDate
 
+import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.{ActorAttributes, Materializer, Supervision}
 import akka.util.Timeout
-import hopkins.covid.model.{Country, CountryStats}
+import hopkins.covid.model.{Country, CountryStats, DetectedCountries}
 import hopkins.database.github.CountryStatsAggregation.Protocol
 import hopkins.database.github.CountryStatsAggregation.Protocol._
 import hopkins.database.github.Downloader.ProvinceRow
@@ -23,7 +24,16 @@ object GithubDatabase {
     val worldStatsAggregation: ActorRef[CountryStatsAggregation.Protocol] =
       actorContext.spawn(WorldStatsAggregation.behaviour(), "WorldStats")
 
-    val sink = ActorSink.actorRefWithBackpressure[ProvinceRow, Protocol, Ack] (
+    reload(worldStatsAggregation, actorContext.system.toClassic)
+
+    worldStatsAggregation
+
+  }
+
+  def reload(
+              worldStatsAggregation: ActorRef[CountryStatsAggregation.Protocol],
+              actorSystem: ActorSystem)(implicit materializer: Materializer) = {
+    val sink = ActorSink.actorRefWithBackpressure[ProvinceRow, Protocol, Ack](
       worldStatsAggregation,
       (ackingActor, row) => AddCountryStats(row, ackingActor),
       Start.apply,
@@ -32,11 +42,8 @@ object GithubDatabase {
       t => Failure(t)
     ).withAttributes(ActorAttributes.supervisionStrategy(decider))
 
-    Downloader.gatherStats(actorContext.system.toClassic)
+    Downloader.gatherStats(actorSystem)
       .runWith(sink)
-
-    worldStatsAggregation
-
   }
 
   private val decider: Supervision.Decider = {
@@ -51,7 +58,7 @@ object GithubDatabase {
                  (implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, Map[LocalDate, CountryStats]]] =
         actorRef ? (replyTo => GetCountryStats(country, from, to, replyTo))
 
-      def getAllCountries(implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, List[Country]]] =
+      def getAllCountries(implicit timeout: Timeout, scheduler: Scheduler): Future[Either[Unit, DetectedCountries]] =
         actorRef ? (GetAllCountries.apply)
 
     }

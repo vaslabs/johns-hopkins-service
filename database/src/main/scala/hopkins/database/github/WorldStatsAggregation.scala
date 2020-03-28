@@ -2,7 +2,7 @@ package hopkins.database.github
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
-import hopkins.covid.model.Country
+import hopkins.covid.model.{Country, DetectedCountries}
 import hopkins.database.github.CountryStatsAggregation.Protocol._
 
 object WorldStatsAggregation {
@@ -10,8 +10,8 @@ object WorldStatsAggregation {
 
   def behaviour(countries: Set[Country] = Set.empty): Behavior[CountryStatsAggregation.Protocol] = Behaviors.receive {
     case (ctx, s @ AddCountryStats(countryStats, _)) =>
-      ctx.log.info("Adding stats for {}", countryStats.country.name)
-      val name = countryStats.country.name.replaceAll("\\W", "-")
+      ctx.log.info("Adding stats for {}", countryStats.country.value)
+      val name = countryStats.country.value.replaceAll("\\W", "-")
       val countryStatsAggregation =
         ctx.child(name)
           .getOrElse(
@@ -22,7 +22,7 @@ object WorldStatsAggregation {
       countryStatsAggregation ! s
       behaviour(countries + countryStats.country)
     case (ctx, gcs @ GetCountryStats(country, _, _, replyTo)) =>
-      val name = country.name.replaceAll("\\W", "-")
+      val name = country.value.replaceAll("\\W", "-")
       ctx.child(name) match {
         case Some(child) =>
           child.unsafeUpcast[CountryStatsAggregation.Protocol] ! gcs
@@ -32,7 +32,7 @@ object WorldStatsAggregation {
 
       Behaviors.same
     case (_, GetAllCountries(replyTo)) =>
-      replyTo ! Right(countries.toList)
+      replyTo ! Right(DetectedCountries(countries))
       Behaviors.same
     case (ctx, Completed) =>
       ctx.log.info("Initialisation completed")
