@@ -6,25 +6,31 @@ scalaVersion in ThisBuild := "2.13.1"
 
 
 lazy val `johns-hopkins` = (project in file("."))
+  .settings(noPublishSettings)
   .aggregate(model, endpoints, service, database, endpoints)
 
 
 lazy val service = (project in file("service"))
   .settings(compilerSettings)
+  .enablePlugins(dockerPlugins: _*)
+  .settings(dockerSettings)
   .settings(libraryDependencies ++= Dependencies.Module.service)
   .dependsOn(database, endpoints)
 
 lazy val database = (project in file("database"))
   .settings(compilerSettings)
+  .settings(noPublishSettings)
   .settings(libraryDependencies ++= Dependencies.Module.database)
   .dependsOn(model)
 
 lazy val endpoints = (project in file("endpoints"))
   .settings(compilerSettings)
+  .settings(noPublishSettings)
   .settings(libraryDependencies ++= Dependencies.Module.endpoints)
   .dependsOn(model)
 
 lazy val model = (project in file("model"))
+  .settings(noPublishSettings)
   .settings(compilerSettings)
 
 
@@ -51,3 +57,30 @@ lazy val compilerSettings = {
     "-Xfatal-warnings"
   )
 }
+
+lazy val dockerSettings = Seq(
+  version in Docker := version.value,
+  maintainer in Docker := "Vasilis Nicolaou",
+  dockerBaseImage := "openjdk:8u191-alpine3.9",
+  dockerExposedPorts := Seq(8080),
+  maintainer := "vaslabsco@gmail.com",
+  packageName in Docker := "covid19-stats",
+  version in Docker := version.value,
+  dockerUsername := Some("vaslabs"),
+  dockerUpdateLatest := true,
+  javaOptions in Universal ++= Seq(
+    "-J-Xmx256m",
+    "-J-Xms128m"
+  )
+)
+
+lazy val noPublishSettings = Seq(
+  publish / skip := true
+)
+
+lazy val dockerPlugins = Seq(DockerPlugin, AshScriptPlugin, JavaAppPackaging, UniversalPlugin)
+
+lazy val versioningSettings = Seq(
+  dynverSeparator in ThisBuild := "-",
+  dynverVTagPrefix in ThisBuild := false
+)
